@@ -87,3 +87,93 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     loss = mean_squared_error(y, tx, w)
     return w, loss
 
+def ridge_regression(y, tx, lambda_):
+    """implement ridge regression.
+
+    Args:
+        y: numpy array of shape (N,), N is the number of samples.
+        tx: numpy array of shape (N,D), D is the number of features.
+        lambda_: scalar.
+
+    Returns:
+        w: optimal weights, numpy array of shape(D,), D is the number of features.
+
+    """
+    D = tx.shape[1]
+    N = tx.shape[0]
+
+    w = np.linalg.solve(
+        (np.matmul(np.transpose(tx), tx) + np.multiply(lambda_*(2*N), np.diag(np.full(D,1)))),
+                  np.matmul(np.transpose(tx), y)
+    )
+    return w
+
+def sigmoid(t):
+    """apply sigmoid function on t.
+
+    Args:
+        t: scalar or numpy array
+
+    Returns:
+        scalar or numpy array
+    """
+    return 1/(1+np.exp(-t))
+
+def logistic_regression(y, tx, initial_w, max_iters, gamma):
+    """
+    Do one step of gradient descent using logistic regression. Return the loss and the updated w.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        initial_w:  shape=(D, 1)
+        max_iters (int): total number of SGD iterations
+        gamma: float
+
+    Returns:
+        loss: scalar number
+        w: shape=(D, 1)
+    """
+    assert y.shape[0] == tx.shape[0]
+    assert tx.shape[1] == w.shape[0]
+
+    w = initial_w.copy()
+    N = len(y)
+
+    for _ in range(max_iters):
+        gradient = (1/N)*np.matmul(tx.T, sigmoid(np.matmul(tx, w))-y)
+        w = w - gamma * gradient
+
+    loss = (-1/N)*np.sum(y*np.log(sigmoid(np.matmul(tx, w))) + (1-y)*np.log(1-sigmoid(np.matmul(tx, w))))
+
+    return loss, w
+
+def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
+    """
+    Do one step of gradient descent using logistic regression. Return the loss and the updated w.
+
+    Args:
+        y:  shape=(N, 1)
+        tx: shape=(N, D)
+        lambda_: scalar
+        intial_w:  shape=(D, 1)
+        max_iters (int): total number of SGD iterations
+        gamma: float
+
+    Returns:
+        loss: scalar number
+        w: shape=(D, 1)
+    """
+    assert y.shape[0] == tx.shape[0]
+    assert tx.shape[1] == w.shape[0]
+
+    w = initial_w.copy()
+    N = len(y)
+
+    for _ in range(max_iters):
+        gradient = (1/N)*np.matmul(tx.T, sigmoid(np.matmul(tx, w))-y) + lambda_*2*w
+        w = w - gamma * gradient
+
+    loss = (-1/N)*np.sum(y*np.log(sigmoid(np.matmul(tx, w))) + (1-y)*np.log(1-sigmoid(np.matmul(tx, w))))
+
+    return loss, w
