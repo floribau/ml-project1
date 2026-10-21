@@ -135,7 +135,7 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
         w: shape=(D, 1)
     """
     assert y.shape[0] == tx.shape[0]
-    assert tx.shape[1] == w.shape[0]
+    assert tx.shape[1] == initial_w.shape[0]
 
     w = initial_w.copy()
     N = len(y)
@@ -165,10 +165,11 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
         w: shape=(D, 1)
     """
     assert y.shape[0] == tx.shape[0]
-    assert tx.shape[1] == w.shape[0]
+    assert tx.shape[1] == initial_w.shape[0]
 
     w = initial_w.copy()
     N = len(y)
+    
 
     for _ in range(max_iters):
         gradient = (1/N)*np.matmul(tx.T, sigmoid(np.matmul(tx, w))-y) + lambda_*2*w
