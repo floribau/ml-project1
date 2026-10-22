@@ -1,4 +1,8 @@
 import numpy as np
+import random
+from datetime import datetime
+import matplotlib.pyplot as plt
+import time
 
 def mean_squared_error(y, tx, w):
     """Calculate the MSE loss.
@@ -178,3 +182,89 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     loss = (-1/N)*np.sum(y*np.log(sigmoid(np.matmul(tx, w))) + (1-y)*np.log(1-sigmoid(np.matmul(tx, w))))
 
     return loss, w
+
+def calculate_primal_objective(y, X, w, lambda_):
+    """compute the full cost (the primal objective, equation (1) in the exercise pdf),
+        that is loss plus regularizer.
+
+    Args:
+        X: the full dataset matrix, shape = (num_examples, num_features)
+        y: the corresponding +1 or -1 labels, shape = (num_examples)
+        w: shape = (num_features)
+
+    Returns:
+        scalar, non-negative
+    """
+    return (np.mean(np.clip(1 - y * (X@w), 0, np.inf)) + (lambda_ /2) * np.sum((w**2))).tolist()
+
+def calculate_accuracy(y, X, w):
+    """compute the accuracy on the given dataset (X, y) using the model w.
+
+    Args:
+        X: the full dataset matrix, shape = (num_examples, num_features)
+        y: the corresponding +1 or -1 labels, shape = (num_examples)
+        w: shape = (num_features)
+
+    Returns:
+        scalar, between 0 and 1
+    """
+    correct_prediction = y * (X@w) # prediction is correct if the sign is positive.
+    return correct_prediction[correct_prediction >= 0].shape[0] / y.shape[0]
+
+def calculate_stochastic_gradient_svm(y, X, w, lambda_, n, num_examples):
+    """compute the stochastic gradient of loss plus regularizer.
+
+    Args:
+        X: the dataset matrix, shape = (num_examples, num_features)
+        y: the corresponding +1 or -1 labels, shape = (num_examples)
+        w: shape = (num_features)
+        lambda_: positive scalar number
+        n: the index of the (one) datapoint we have sampled
+        num_examples: N
+
+    Returns:
+        numpy array, shape = (num_features)
+    """
+    x_n = X[n]
+    y_n = y[n]
+    if y_n * (x_n @ w) > 1:
+        return lambda_ * w
+    return -y_n * x_n + lambda_*w
+
+def sgd_for_svm_demo(y, X, max_iter: int = 1000, gamma:float = 1e-4, lambda_:float = 5e1):
+    xs = np.unique(np.round(np.logspace(0, 5, 201)))[:-1]
+    num_examples, num_features = X.shape
+    w = np.zeros(num_features)
+    costs = []
+    start = time.time()
+
+    for it in range(max_iter):
+        # n = sample one data point uniformly at random data from x
+        n = random.randint(0, num_examples - 1)
+
+        grad = calculate_stochastic_gradient_svm(y, X, w, lambda_, n, num_examples)
+        w -= gamma / (it + 1) * grad
+
+        cost = calculate_primal_objective(y, X, w, lambda_)
+
+        if it in xs:
+            costs += [cost]
+
+    end = time.time()
+
+    print(
+        "Final training accuracy = {l} %".format(
+            l=np.round(100 * calculate_accuracy(y, X, w), 2)
+        )
+    )
+    print("Training time: " + str(np.round(end - start, 1)) + " seconds ")
+
+    plt.figure()
+    plt.title("SGD on primal objective")
+    if len(xs) > len(costs):
+        xs = xs[:len(costs)]
+    plt.loglog(xs, costs)
+    plt.xlabel("Number of iterations")
+    plt.ylabel("Primal objective")
+    plt.show()
+    return costs, w
