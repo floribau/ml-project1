@@ -3,6 +3,8 @@ import random
 import matplotlib.pyplot as plt
 import time
 
+from evals import accuracy_from_model
+
 
 def mean_squared_error(y, tx, w):
     """Calculate the MSE loss.
@@ -20,8 +22,8 @@ def mean_squared_error(y, tx, w):
     return 0.5 * np.mean(e**2)
 
 
-def compute_gradient(y, tx, w):
-    """Computes the gradient at w.
+def compute_mean_squared_error_gradient(y, tx, w):
+    """Computes the linear regression gradient at w.
 
     Args:
         y (np.ndarray): target output of shape=(N,)
@@ -53,7 +55,7 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
 
     # perform max_iters GD iterations
     for _ in range(max_iters):
-        grad = compute_gradient(y, tx, w)
+        grad = compute_mean_squared_error_gradient(y, tx, w)
         w = w - gamma * grad
 
     # compute MSE loss for the last weight vector
@@ -84,7 +86,7 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
         n = np.random.randint(N)
         xn = tx[n : n + 1]
         yn = y[n : n + 1]
-        grad = compute_gradient(yn, xn, w)
+        grad = compute_mean_squared_error_gradient(yn, xn, w)
         w = w - gamma * grad
 
     # compute MSE loss for the last weight vector
@@ -124,13 +126,9 @@ def ridge_regression(y, tx, lambda_):
     D = tx.shape[1]
     N = tx.shape[0]
 
-    w = np.linalg.solve(
-        (
-            np.matmul(np.transpose(tx), tx)
-            + np.multiply(lambda_ * (2 * N), np.diag(np.full(D, 1)))
-        ),
-        np.matmul(np.transpose(tx), y),
-    )
+    a = tx.T @ tx + 2 * N * lambda_ * np.identity(D)
+    b = tx.T @ y
+    w = np.linalg.solve(a, b)
     return w
 
 
@@ -166,6 +164,23 @@ def negative_log_likelihood(y, tx, w):
     return np.mean(-y * z + np.logaddexp(0, z))
 
 
+def logistic_regression_gradient(y, tx, w, lambda_=0):
+    """Compute the gradient for logistic regression with optional regularization term.
+
+    Args:
+        y: shape=(N, 1)
+        tx: shape=(N, D)
+        w: shape=(D, 1)
+        lambda_: scalar, regularization parameter (default: 0)
+
+    Returns:
+        gradient: shape=(D, 1)
+    """
+    N = len(y)
+    p = sigmoid(tx @ w)
+    return (1 / N) * (tx.T @ (p - y)) + 2 * lambda_ * w
+
+
 def logistic_regression(y, tx, initial_w, max_iters, gamma):
     """
     Do max_iters steps of gradient descent using logistic regression. Return the loss and the updated w.
@@ -178,27 +193,15 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
         gamma: float
 
     Returns:
-        loss: scalar number
         w: shape=(D, 1)
+        loss: scalar number
     """
-    assert y.shape[0] == tx.shape[0]
-    assert tx.shape[1] == initial_w.shape[0]
-
-    w = initial_w.copy()
-    N = len(y)
-
-    for _ in range(max_iters):
-        gradient = (1 / N) * np.matmul(tx.T, sigmoid(np.matmul(tx, w)) - y)
-        w = w - gamma * gradient
-
-    loss = negative_log_likelihood(y, tx, w)
-
-    return loss, w
+    return reg_logistic_regression(y, tx, 0, initial_w, max_iters, gamma)
 
 
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     """
-    Do max_iters steps of gradient descent using logistic regression. Return the loss and the updated w.
+    Do max_iters steps of gradient descent using logistic regression with L2 regularization. Return the loss and the updated w.
 
     Args:
         y:  shape=(N, 1)
@@ -209,24 +212,22 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
         gamma: float
 
     Returns:
-        loss: scalar number
         w: shape=(D, 1)
+        loss: scalar number
     """
     assert y.shape[0] == tx.shape[0]
     assert tx.shape[1] == initial_w.shape[0]
 
     w = initial_w.copy()
-    N = len(y)
 
     for _ in range(max_iters):
-        gradient = (1 / N) * np.matmul(
-            tx.T, sigmoid(np.matmul(tx, w)) - y
-        ) + lambda_ * 2 * w
-        w = w - gamma * gradient
+        grad = logistic_regression_gradient(y, tx, w, lambda_)
+        w = w - gamma * grad
 
+    # Unregularized negative log likelihood
     loss = negative_log_likelihood(y, tx, w)
 
-    return loss, w
+    return w, loss
 
 
 def calculate_primal_objective(y, X, w, lambda_):
@@ -244,21 +245,6 @@ def calculate_primal_objective(y, X, w, lambda_):
     return (
         np.mean(np.clip(1 - y * (X @ w), 0, np.inf)) + (lambda_ / 2) * np.sum((w**2))
     ).tolist()
-
-
-def calculate_accuracy(y, X, w):
-    """compute the accuracy on the given dataset (X, y) using the model w.
-
-    Args:
-        X: the full dataset matrix, shape = (num_examples, num_features)
-        y: the corresponding +1 or -1 labels, shape = (num_examples)
-        w: shape = (num_features)
-
-    Returns:
-        scalar, between 0 and 1
-    """
-    correct_prediction = y * (X @ w)  # prediction is correct if the sign is positive.
-    return correct_prediction[correct_prediction >= 0].shape[0] / y.shape[0]
 
 
 def calculate_stochastic_gradient_svm(y, X, w, lambda_, n, num_examples):
@@ -307,7 +293,7 @@ def sgd_for_svm_demo(
 
     print(
         "Final training accuracy = {l} %".format(
-            l=np.round(100 * calculate_accuracy(y, X, w), 2)
+            l=np.round(100 * accuracy_from_model(y, X, w), 2)
         )
     )
     print("Training time: " + str(np.round(end - start, 1)) + " seconds ")
