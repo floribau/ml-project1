@@ -141,7 +141,7 @@ def sigmoid(t):
     Returns:
         scalar or numpy array
     """
-    return 1 / (1 + np.exp(-t))
+    return 1 / (1 + np.exp(-np.clip(t, -500, 500)))
 
 
 def negative_log_likelihood(y, tx, w):
