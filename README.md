@@ -110,3 +110,7 @@ used for the final model and the linear SVM comparison.
 - [`best_model_weights.npy`](./best_model_weights.npy): precomputed selected
   logistic-regression weights used by the prediction shortcut.
 - [`data/`](./data/): dataset archive and extracted dataset location.
+
+## Disclaimer
+
+This Readme was generated with the support of generative AI tools.
